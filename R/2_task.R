@@ -1,0 +1,65 @@
+# ==============================================================================
+# TASK 2: Posterior Predictive Check
+# ==============================================================================
+
+cat("\nExecuting Task 2: Generating Posterior Predictive Check...\n")
+
+# Extract MCMC samples from the best model (calculated in Task 1)
+samples_mat <- as.matrix(mcmc_samples)
+S <- nrow(samples_mat)
+
+# Define a grid of values for y (Load factor is between 10^-3 and 1 - 10^-3)
+y_grid <- seq(0.001, 0.999, length.out = 500)
+pred_density <- rep(0, length(y_grid))
+
+# We need to average the predictive density over all MCMC samples
+cat("Computing posterior predictive density over MCMC samples...\n")
+
+for (s in 1:S) {
+  # For each MCMC sample, compute the mixture density on the grid
+  mix_dens_s <- rep(0, length(y_grid))
+  for (h in 1:best_model) {
+    pi_h <- samples_mat[s, paste0("pi[", h, "]")]
+    alpha_h <- samples_mat[s, paste0("alpha[", h, "]")]
+    beta_h <- samples_mat[s, paste0("beta[", h, "]")]
+    
+    # Add weighted Beta density for component h
+    mix_dens_s <- mix_dens_s + pi_h * dbeta(y_grid, alpha_h, beta_h)
+  }
+  # Accumulate
+  pred_density <- pred_density + mix_dens_s
+}
+
+# Average over S samples to get the final Bayesian predictive density
+pred_density <- pred_density / S
+
+# Create a data frame for plotting the curve
+df_pred <- data.frame(
+  y_grid = y_grid,
+  density = pred_density
+)
+
+# Plotting using ggplot2
+cat("Generating plot...\n")
+p_predictive <- ggplot(df, aes(x = load_factor)) +
+  # Istogramma empirico (y = ..density.. per avere l'area = 1)
+  geom_histogram(aes(y = after_stat(density)), bins = 40, fill = "tomato", color = "white", alpha = 0.8) +
+  # Curva di densità predittiva a posteriori
+  geom_line(data = df_pred, aes(x = y_grid, y = density), color = "darkblue", linewidth = 1.2) +
+  theme_minimal() +
+  labs(
+    title = paste("Posterior Predictive Density vs Empirical Histogram (H =", best_model, ")"),
+    x = "Load factor (hourly / daily peak)",
+    y = "Density"
+  ) +
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    axis.title = element_text(face = "bold")
+  )
+
+# Display the plot
+print(p_predictive)
+
+# Save the plot explicitly so it can be viewed as an image file
+ggsave("posterior_predictive.png", plot = p_predictive, width = 8, height = 5, dpi = 300)
+cat("\nPlot salvato con successo come 'posterior_predictive.png' nella cartella del progetto.\n")
