@@ -71,5 +71,5 @@ p_fractions <- ggplot(fractions_df, aes(x = hour, y = fraction, fill = map_clust
 print(p_fractions)
 
 # Save the plot explicitly
-ggsave("cluster_fractions_hourly.png", plot = p_fractions, width = 8, height = 5, dpi = 300)
-cat("\nPlot salvato con successo come 'cluster_fractions_hourly.png' nella cartella del progetto.\n")
+ggsave("images/cluster_fractions_hourly.png", plot = p_fractions, width = 8, height = 5, dpi = 300)
+cat("\nPlot salvato con successo come 'images/cluster_fractions_hourly.png' nella cartella del progetto.\n")

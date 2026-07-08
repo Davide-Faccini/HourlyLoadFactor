@@ -7,6 +7,18 @@
 cat("Starting project execution...\n")
 
 # ------------------------------------------------------------------------------
+# GLOBAL PARAMETERS
+# ------------------------------------------------------------------------------
+# Imposta il seme per garantire che l'algoritmo stocastico MCMC dia risultati 
+# sempre riproducibili (es. scelta identica del WAIC migliore)
+set.seed(42)
+
+# Modifica questi parametri per aumentare o diminuire i tempi e la precisione
+GLOBAL_N_ITER <- 3000         # Numero di iterazioni di campionamento
+GLOBAL_N_BURNIN <- 1000       # Numero di iterazioni di burn-in
+cat("Global parameters set: n_iter =", GLOBAL_N_ITER, ", n_burnin =", GLOBAL_N_BURNIN, "\n\n")
+
+# ------------------------------------------------------------------------------
 # 0. SETUP AND DATA PREPARATION
 # ------------------------------------------------------------------------------
 cat("Loading libraries and dataset...\n")
