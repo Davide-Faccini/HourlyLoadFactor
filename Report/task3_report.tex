@@ -1,0 +1,171 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{geometry}
+\geometry{a4paper, margin=1in}
+
+\title{Detailed Report: Code Analysis of \texttt{3\_task.R}}
+\author{}
+\date{\today}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+\lstset{style=mystyle}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+This report provides a detailed, line-by-line analysis of the \texttt{3\_task.R} file, which corresponds to Task 3 of the project. The objective of this script is to perform post-hoc exploration of the data by assigning each observation to one of the mixture components (clustering) using the Maximum A Posteriori (MAP) criterion. Finally, it analyzes how these cluster assignments vary depending on the hour of the day.
+
+\section{Line-by-Line Code Analysis}
+
+\subsection{Extracting Posterior Means}
+\begin{lstlisting}[language=R]
+# ==============================================================================
+# TASK 3: Post-hoc Exploration and MAP Assignment (Clustering)
+# ==============================================================================
+
+cat("\nExecuting Task 3: MAP clustering and empirical fractions...\n")
+
+samples_mat <- as.matrix(mcmc_samples)
+
+# Calculate posterior means for pi, alpha, and beta
+pi_mean <- rep(0, best_model)
+alpha_mean <- rep(0, best_model)
+beta_mean <- rep(0, best_model)
+
+for (h in 1:best_model) {
+  pi_mean[h] <- mean(samples_mat[, paste0("pi[", h, "]")])
+  alpha_mean[h] <- mean(samples_mat[, paste0("alpha[", h, "]")])
+  beta_mean[h] <- mean(samples_mat[, paste0("beta[", h, "]")])
+}
+\end{lstlisting}
+\begin{itemize}
+    \item \textbf{Lines 1-7}: Introductory comments, a console print, and the conversion of the MCMC samples from the best model into a matrix format (\texttt{samples\_mat}).
+    \item \textbf{Lines 9-12}: Three vectors (\texttt{pi\_mean}, \texttt{alpha\_mean}, \texttt{beta\_mean}) are initialized to store the posterior mean estimates of the parameters for each component of the mixture model.
+    \item \textbf{Lines 14-18}: A loop iterates over each component \texttt{h} (from 1 to \texttt{best\_model}). For each parameter ($\pi$, $\alpha$, $\beta$) of the specific component, the arithmetic mean across all MCMC iterations is calculated. These posterior means are point estimates that will be used for the subsequent clustering step.
+\end{itemize}
+
+\subsection{Calculating Assignment Probabilities}
+\begin{lstlisting}[language=R, firstnumber=20]
+# Calculate the probability of each observation belonging to each component
+# P(Z_i = h | y_i) proportional to pi_h * Beta(y_i | alpha_h, beta_h)
+N <- nrow(df)
+prob_matrix <- matrix(0, nrow = N, ncol = best_model)
+
+for (i in 1:N) {
+  for (h in 1:best_model) {
+    prob_matrix[i, h] <- pi_mean[h] * dbeta(df$load_factor[i], alpha_mean[h], beta_mean[h])
+  }
+  # Normalize to sum to 1
+  prob_matrix[i, ] <- prob_matrix[i, ] / sum(prob_matrix[i, ])
+}
+\end{lstlisting}
+\begin{itemize}
+    \item \textbf{Lines 20-23}: The number of observations \texttt{N} is extracted from the original data frame \texttt{df}. A \texttt{prob\_matrix} of dimensions $N \times H$ (observations by components) is initialized with zeros to store the probabilities of assignment.
+    \item \textbf{Lines 25-26}: A nested loop iterates over each observation \texttt{i} and each mixture component \texttt{h}.
+    \item \textbf{Line 27}: For a given observation $y_i$, the unnormalized posterior probability of belonging to component $h$ is calculated. By Bayes' theorem, $P(Z_i = h \mid y_i) \propto P(Z_i = h) \cdot P(y_i \mid Z_i = h)$. This corresponds to the estimated weight $\pi_h$ multiplied by the Beta density evaluated at $y_i$ using the parameters $\alpha_h$ and $\beta_h$.
+    \item \textbf{Line 30}: After calculating the unnormalized probabilities for all components for the $i$-th observation, they are divided by their sum. This normalizes the probabilities so that they correctly sum to 1 across all components for that specific observation.
+\end{itemize}
+
+\subsection{MAP Clustering Assignment}
+\begin{lstlisting}[language=R, firstnumber=33]
+# Assign each observation to the component with the maximum a posteriori (MAP) probability
+df$map_cluster <- apply(prob_matrix, 1, which.max)
+
+# Convert map_cluster to a factor for plotting
+df$map_cluster <- as.factor(df$map_cluster)
+\end{lstlisting}
+\begin{itemize}
+    \item \textbf{Line 34}: The Maximum A Posteriori (MAP) rule is applied. The \texttt{apply} function with \texttt{MARGIN = 1} (row-wise) finds the index of the component that has the maximum probability for each observation using \texttt{which.max}. This integer is assigned as the cluster label in the new column \texttt{map\_cluster} of the original data frame \texttt{df}.
+    \item \textbf{Line 37}: The cluster labels are converted into a categorical \texttt{factor} type, which is necessary for discrete color mapping in visualizations.
+\end{itemize}
+
+\subsection{Data Aggregation by Hour}
+\begin{lstlisting}[language=R, firstnumber=39]
+# Calculate the empirical fraction of observations in each component as a function of hour
+cat("Calculating empirical fractions and generating plot...\n")
+
+# Use dplyr to group and summarize
+library(dplyr)
+fractions_df <- df %>%
+  group_by(hour, map_cluster) %>%
+  summarise(count = n(), .groups = "drop") %>%
+  group_by(hour) %>%
+  mutate(fraction = count / sum(count))
+\end{lstlisting}
+\begin{itemize}
+    \item \textbf{Lines 43-48}: The \texttt{dplyr} package is loaded to manipulate the data frame efficiently. A pipeline (\texttt{\%>\%}) is used to create \texttt{fractions\_df}:
+    \begin{itemize}
+        \item \texttt{group\_by(hour, map\_cluster)}: The data is grouped by both the hour of the day and the assigned cluster.
+        \item \texttt{summarise(count = n())}: It counts the number of observations falling into each specific combination of hour and cluster.
+        \item \texttt{group\_by(hour)}: The grouping is changed to only group by hour.
+        \item \texttt{mutate(fraction = count / sum(count))}: It calculates the relative fraction of each cluster within that specific hour (so that the fractions sum to 1 for every hour).
+    \end{itemize}
+\end{itemize}
+
+\subsection{Plotting the Empirical Fractions}
+\begin{lstlisting}[language=R, firstnumber=50]
+# Create the plot
+p_fractions <- ggplot(fractions_df, aes(x = hour, y = fraction, fill = map_cluster)) +
+  # Usiamo geom_col (bar chart) che gestisce nativamente i cluster mancanti in certe ore senza sballare le somme
+  geom_col(width = 1, position = "fill", alpha = 0.85) +
+  theme_minimal() +
+  scale_x_continuous(breaks = seq(0, 23, by = 2)) +
+  labs(
+    title = "Empirical Fraction of MAP Clusters by Hour",
+    x = "Hour of the Day (0-23)",
+    y = "Fraction of Observations",
+    fill = "Cluster"
+  ) +
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    axis.title = element_text(face = "bold"),
+    legend.position = "bottom"
+  )
+
+# Display the plot
+print(p_fractions)
+
+# Save the plot explicitly
+ggsave("images/cluster_fractions_hourly.png", plot = p_fractions, width = 8, height = 5, dpi = 300)
+cat("\nPlot salvato con successo come 'images/cluster_fractions_hourly.png' nella cartella del progetto.\n")
+\end{lstlisting}
+\begin{itemize}
+    \item \textbf{Lines 51-66}: A \texttt{ggplot2} stacked bar chart (\texttt{geom\_col}) is generated to visualize how cluster assignments change over the 24 hours of a day.
+    \begin{itemize}
+        \item \texttt{position = "fill"}: This ensures that the bars are stacked and forced to stretch from 0 to 1, accurately representing proportions/fractions regardless of absolute counts.
+        \item The x-axis is customized to show breaks every 2 hours (\texttt{seq(0, 23, by = 2)}).
+    \end{itemize}
+    \item \textbf{Lines 69-73}: The generated plot is printed to the view and exported as a high-resolution PNG file located at \texttt{images/cluster\_fractions\_hourly.png}.
+\end{itemize}
+
+\section{Conclusion}
+This task effectively performs hard clustering on the observed data using the rigorous MAP criterion derived from the Bayesian estimation. By analyzing the resulting clusters temporally (hour by hour), it translates abstract statistical components into interpretable insights, revealing daily patterns in the load factor dynamics. The use of \texttt{dplyr} for aggregation and \texttt{ggplot2} for stacked visualization makes the subsequent analysis highly robust and clear.
+
+\end{document}
