@@ -4,7 +4,7 @@
 
 cat("\nExecuting Task 2: Generating Posterior Predictive Check...\n")
 
-# Extract MCMC samples from the best model (calculated in Task 1)
+# Extract MCMC samples from the best mode
 samples_mat <- as.matrix(mcmc_samples)
 S <- nrow(samples_mat)
 
@@ -54,7 +54,7 @@ df_comp_long <- pivot_longer(df_comp, cols = starts_with("Component"), names_to 
 # Plotting using ggplot2
 cat("Generating plots...\n")
 
-# 1. Grafico complessivo (dati + modello predittivo)
+# Posterior predictive density
 p_predictive <- ggplot(df, aes(x = load_factor)) +
   # Istogramma empirico (y = ..density.. per avere l'area = 1)
   geom_histogram(aes(y = after_stat(density)), bins = 40, fill = "tomato", color = "white", alpha = 0.8) +
@@ -76,7 +76,7 @@ print(p_predictive)
 ggsave("images/posterior_predictive.png", plot = p_predictive, width = 8, height = 5, dpi = 300)
 cat("\nPlot complessivo salvato come 'images/posterior_predictive.png'.\n")
 
-# 2. Grafico delle sole componenti separate
+# Only singles component graphic
 p_components <- ggplot() +
   geom_line(data = df_comp_long, aes(x = y_grid, y = density, color = Component), linewidth = 1) +
   theme_minimal() +

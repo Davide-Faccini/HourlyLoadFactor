@@ -13,7 +13,6 @@ waic_list <- list()
 models_mcmc <- list()
 
 # Function to run JAGS model for a given H
-# Riduco temporaneamente le iterazioni per il loop di selezione per abbattere i tempi
 fit_beta_mixture <- function(H, data, n_iter = 500, n_burnin = 500) {
   
   if (H == 1) {
@@ -84,14 +83,13 @@ fit_beta_mixture <- function(H, data, n_iter = 500, n_burnin = 500) {
 
 # Run models for H = 1, 2, 3, 4, 5
 for (H in 1:5) {
-  # Usa i parametri globali definiti in main.R, se non ci sono usa i default 500
   n_it <- if(exists("GLOBAL_N_ITER")) GLOBAL_N_ITER else 500
   n_bu <- if(exists("GLOBAL_N_BURNIN")) GLOBAL_N_BURNIN else 500
   
   samples <- fit_beta_mixture(H, jags_data, n_iter = n_it, n_burnin = n_bu)
   models_mcmc[[H]] <- samples
   
-  # Extract and compute log_lik for WAIC in R (MUCH faster than doing it inside JAGS)
+  # Extract and compute log_lik for WAIC
   samples_mat <- as.matrix(samples)
   S <- nrow(samples_mat)
   log_lik_mat <- matrix(0, nrow = S, ncol = N)

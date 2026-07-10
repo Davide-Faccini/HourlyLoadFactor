@@ -4,8 +4,6 @@
 
 cat("\nExecuting Task 3: MAP clustering and empirical fractions...\n")
 
-# To compute the MAP assignment, we need the posterior means of our parameters
-# from the best model (H = 5)
 samples_mat <- as.matrix(mcmc_samples)
 
 # Calculate posterior means for pi, alpha, and beta
